@@ -2,6 +2,8 @@
 
 ### Run for `compose.bind-mounts.yml` setup
 ```
+mkdir -p caddy
+cp Caddyfile.conf caddy/Caddyfile
 mkdir -p \
   data/postgres \
   data/mattermost/config \
