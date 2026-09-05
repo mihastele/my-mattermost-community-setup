@@ -1,0 +1,117 @@
+name: mattermost
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    stop_grace_period: 1m
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    mem_limit: 2g
+    shm_size: 256mb
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+  mattermost:
+    image: mattermost/mattermost-team-edition:${MATTERMOST_IMAGE_TAG}
+    restart: unless-stopped
+    stop_grace_period: 1m
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      TZ: ${TZ}
+
+      # This is the public user-facing URL, not the internal HTTP endpoint.
+      MM_SERVICESETTINGS_SITEURL: https://${DOMAIN}
+      MM_SERVICESETTINGS_LISTENADDRESS: :8065
+      MM_SERVICESETTINGS_READTIMEOUT: "900"
+      MM_SERVICESETTINGS_WRITETIMEOUT: "900"
+      MM_SERVICESETTINGS_IDLE_TIMEOUT: "300"
+
+      MM_SQLSETTINGS_DRIVERNAME: postgres
+      MM_SQLSETTINGS_DATASOURCE: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable&connect_timeout=10
+      MM_SQLSETTINGS_MAXOPENCONNS: "40"
+      MM_SQLSETTINGS_MAXIDLECONNS: "20"
+      MM_SQLSETTINGS_CONNMAXLIFETIMEMILLISECONDS: "3600000"
+      MM_SQLSETTINGS_CONNMAXIDLETIMEMILLISECONDS: "300000"
+      MM_SQLSETTINGS_QUERYTIMEOUT: "30"
+
+      MM_FILESETTINGS_DRIVERNAME: local
+      MM_FILESETTINGS_DIRECTORY: /mattermost/data
+      MM_FILESETTINGS_MAXFILESIZE: ${MAX_FILE_SIZE_BYTES}
+
+      MM_EMAILSETTINGS_SENDEMAILNOTIFICATIONS: "true"
+      MM_EMAILSETTINGS_REQUIREEMAILVERIFICATION: "true"
+      MM_EMAILSETTINGS_ENABLESIGNUPWITHEMAIL: "false"
+      MM_EMAILSETTINGS_FEEDBACKNAME: ${SMTP_FROM_NAME}
+      MM_EMAILSETTINGS_FEEDBACKEMAIL: ${SMTP_FROM_ADDRESS}
+      MM_EMAILSETTINGS_REPLYTOADDRESS: ${SMTP_FROM_ADDRESS}
+      MM_EMAILSETTINGS_SMTPSERVER: ${SMTP_HOST}
+      MM_EMAILSETTINGS_SMTPPORT: ${SMTP_PORT}
+      MM_EMAILSETTINGS_ENABLESMTPAUTH: "true"
+      MM_EMAILSETTINGS_SMTPUSERNAME: ${SMTP_USERNAME}
+      MM_EMAILSETTINGS_SMTPPASSWORD: ${SMTP_PASSWORD}
+      MM_EMAILSETTINGS_CONNECTIONSECURITY: ${SMTP_CONNECTION_SECURITY}
+
+      MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
+      MM_LOGSETTINGS_ENABLECONSOLE: "true"
+      MM_LOGSETTINGS_CONSOLELEVEL: INFO
+      MM_PLUGINSETTINGS_ENABLE: "true"
+
+    ports:
+      - "127.0.0.1:8065:8065"
+
+    volumes:
+      - ./data/mattermost/config:/mattermost/config
+      - ./data/mattermost/data:/mattermost/data
+      - ./data/mattermost/logs:/mattermost/logs
+      - ./data/mattermost/plugins:/mattermost/plugins
+      - ./data/mattermost/client/plugins:/mattermost/client/plugins
+      - ./data/mattermost/bleve-indexes:/mattermost/bleve-indexes
+
+    networks:
+      - backend
+
+    mem_limit: 4g
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: local
+      options:
+        max-size: 20m
+        max-file: "5"
+
+networks:
+  backend:
+    name: mattermost_backend
+    internal: true
