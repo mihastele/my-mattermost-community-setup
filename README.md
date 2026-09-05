@@ -12,8 +12,6 @@ mkdir -p \
   data/mattermost/plugins \
   data/mattermost/client/plugins \
   data/mattermost/bleve-indexes \
-  data/caddy/data \
-  data/caddy/config
 ```
 
 #### Basic commands
