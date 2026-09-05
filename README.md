@@ -1,5 +1,19 @@
 # Self-hosted Mattermost
 
+### Run for `compose.bind-mounts.yml` setup
+```
+mkdir -p \
+  data/postgres \
+  data/mattermost/config \
+  data/mattermost/data \
+  data/mattermost/logs \
+  data/mattermost/plugins \
+  data/mattermost/client/plugins \
+  data/mattermost/bleve-indexes \
+  data/caddy/data \
+  data/caddy/config
+```
+
 #### Basic commands
 
 ```
