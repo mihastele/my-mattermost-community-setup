@@ -113,4 +113,3 @@ services:
 networks:
   backend:
     name: mattermost_backend
-    internal: true

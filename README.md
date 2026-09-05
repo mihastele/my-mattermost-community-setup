@@ -393,3 +393,11 @@ Large uploads can fail because of inadequate disk space, reverse-proxy timeouts,
 ## Scaling note
 
 This deployment stores files locally in the Mattermost data volume and is correct for one application node. Before deploying multiple Mattermost replicas, move attachment storage to S3-compatible object storage and use a PostgreSQL deployment appropriate for HA. Do not share a local Docker volume between multiple hosts as an improvised HA solution.
+
+
+```
+sudo chown -R 2000:2000 data/mattermost
+
+sudo find data/mattermost -type d -exec chmod 750 {} \;
+sudo find data/mattermost -type f -exec chmod 640 {} \;
+```
