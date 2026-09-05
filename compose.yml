@@ -10,15 +10,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     networks:
       - backend
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"
-        ]
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1
       interval: 10s
       timeout: 5s
       retries: 12
@@ -47,7 +45,9 @@ services:
     environment:
       TZ: ${TZ}
 
-      MM_SERVICESETTINGS_SITEURL: https://${DOMAIN}:${HTTPS_PORT}
+      # Public canonical URL. Cloudflare serves HTTPS to users.
+      MM_SERVICESETTINGS_SITEURL: https://${DOMAIN}
+      # Mattermost only serves HTTP locally; cloudflared connects here.
       MM_SERVICESETTINGS_LISTENADDRESS: :8065
       MM_SERVICESETTINGS_READTIMEOUT: "900"
       MM_SERVICESETTINGS_WRITETIMEOUT: "900"
@@ -78,20 +78,24 @@ services:
       MM_EMAILSETTINGS_SMTPPASSWORD: ${SMTP_PASSWORD}
       MM_EMAILSETTINGS_CONNECTIONSECURITY: ${SMTP_CONNECTION_SECURITY}
 
+      # Private, invitation-only workspace.
       MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
       MM_LOGSETTINGS_ENABLECONSOLE: "true"
       MM_LOGSETTINGS_CONSOLELEVEL: INFO
       MM_PLUGINSETTINGS_ENABLE: "true"
 
+    # Bind only to localhost: cloudflared on this host is the sole ingress.
+    ports:
+      - "127.0.0.1:8065:8065"
+
     volumes:
-      - mattermost_config:/mattermost/config
-      - mattermost_data:/mattermost/data
-      - mattermost_logs:/mattermost/logs
-      - mattermost_plugins:/mattermost/plugins
-      - mattermost_client_plugins:/mattermost/client/plugins
-      - mattermost_bleve:/mattermost/bleve-indexes
+      - ./data/mattermost/config:/mattermost/config
+      - ./data/mattermost/data:/mattermost/data
+      - ./data/mattermost/logs:/mattermost/logs
+      - ./data/mattermost/plugins:/mattermost/plugins
+      - ./data/mattermost/client/plugins:/mattermost/client/plugins
+      - ./data/mattermost/bleve-indexes:/mattermost/bleve-indexes
     networks:
-      - edge
       - backend
     mem_limit: 4g
     ulimits:
@@ -106,52 +110,7 @@ services:
         max-size: 20m
         max-file: "5"
 
-  caddy:
-    image: caddy:2.8-alpine
-    restart: unless-stopped
-    stop_grace_period: 30s
-    depends_on:
-      - mattermost
-    environment:
-      DOMAIN: ${DOMAIN}
-      HTTPS_PORT: ${HTTPS_PORT}
-      ACME_EMAIL: ${ACME_EMAIL}
-    ports:
-      - "${HTTP_PORT}:80"
-      - "${HTTPS_PORT}:${HTTPS_PORT}"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - edge
-    mem_limit: 512m
-    ulimits:
-      nofile:
-        soft: 65536
-        hard: 65536
-    security_opt:
-      - no-new-privileges:true
-    logging:
-      driver: local
-      options:
-        max-size: 20m
-        max-file: "5"
-
 networks:
-  edge:
-    name: mattermost_edge
   backend:
     name: mattermost_backend
     internal: true
-
-volumes:
-  postgres_data:
-  mattermost_config:
-  mattermost_data:
-  mattermost_logs:
-  mattermost_plugins:
-  mattermost_client_plugins:
-  mattermost_bleve:
-  caddy_data:
-  caddy_config:

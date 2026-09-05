@@ -15,10 +15,8 @@ services:
       - backend
     healthcheck:
       test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1"
-        ]
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} -h 127.0.0.1
       interval: 10s
       timeout: 5s
       retries: 12
@@ -47,8 +45,9 @@ services:
     environment:
       TZ: ${TZ}
 
-      # This is the public user-facing URL, not the internal HTTP endpoint.
+      # Public canonical URL. Cloudflare serves HTTPS to users.
       MM_SERVICESETTINGS_SITEURL: https://${DOMAIN}
+      # Mattermost only serves HTTP locally; cloudflared connects here.
       MM_SERVICESETTINGS_LISTENADDRESS: :8065
       MM_SERVICESETTINGS_READTIMEOUT: "900"
       MM_SERVICESETTINGS_WRITETIMEOUT: "900"
@@ -79,11 +78,13 @@ services:
       MM_EMAILSETTINGS_SMTPPASSWORD: ${SMTP_PASSWORD}
       MM_EMAILSETTINGS_CONNECTIONSECURITY: ${SMTP_CONNECTION_SECURITY}
 
+      # Private, invitation-only workspace.
       MM_TEAMSETTINGS_ENABLEOPENSERVER: "false"
       MM_LOGSETTINGS_ENABLECONSOLE: "true"
       MM_LOGSETTINGS_CONSOLELEVEL: INFO
       MM_PLUGINSETTINGS_ENABLE: "true"
 
+    # Bind only to localhost: cloudflared on this host is the sole ingress.
     ports:
       - "127.0.0.1:8065:8065"
 
@@ -94,10 +95,8 @@ services:
       - ./data/mattermost/plugins:/mattermost/plugins
       - ./data/mattermost/client/plugins:/mattermost/client/plugins
       - ./data/mattermost/bleve-indexes:/mattermost/bleve-indexes
-
     networks:
       - backend
-
     mem_limit: 4g
     ulimits:
       nofile:
